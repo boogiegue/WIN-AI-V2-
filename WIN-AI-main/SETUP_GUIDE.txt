@@ -1,0 +1,135 @@
+# WIN AI — Setup Guide (Windows)
+========================================
+Follow these steps IN ORDER. Takes about 15 minutes.
+
+## STEP 1 — Install Node.js
+1. Go to: https://nodejs.org
+2. Click the big green "LTS" download button
+3. Run the installer — click Next through everything, keep all defaults
+4. When done, press Windows Key + R, type "cmd", hit Enter
+5. In the black window, type: node --version
+6. You should see something like: v20.11.0  (any number is fine)
+
+## STEP 2 — Get your API Keys (all free to start)
+
+### A) BallDontLie (NBA stats — FREE)
+1. Go to: https://www.balldontlie.io
+2. Click "Get API Key" or "Sign Up"
+3. Create a free account
+4. Copy your API key — looks like: abc123def456...
+
+### B) Anthropic (Claude AI — PAID but cheap)
+1. Go to: https://console.anthropic.com
+2. Sign up / log in
+3. Click "API Keys" in the left menu
+4. Click "Create Key" — name it "WIN AI"
+5. Copy the key — starts with: sk-ant-...
+6. Add $5-10 credit (Settings > Billing) — each analysis costs ~$0.01
+
+### C) The Odds API (prop lines — FREE TIER)
+1. Go to: https://the-odds-api.com
+2. Sign up for free (500 requests/month free)
+3. Copy your API key from the dashboard
+
+### D) RapidAPI / Tank01 (lineups — FREE TIER)
+1. Go to: https://rapidapi.com
+2. Create a free account
+3. Search for "tank01-fantasy-stats"
+4. Subscribe to the free tier
+5. Copy your RapidAPI key from the dashboard
+
+## STEP 3 — Set up the project files
+1. Create a folder on your Desktop called: WIN-AI
+2. Copy all 4 files from this download into that folder:
+   - server.js
+   - package.json
+   - .env.example
+   - public/index.html  (put this inside a folder called "public")
+
+Your folder should look like:
+   WIN-AI/
+     server.js
+     package.json
+     .env.example
+     public/
+       index.html
+
+## STEP 4 — Add your API keys
+1. In the WIN-AI folder, find ".env.example"
+2. Right-click it → Rename → change name to just ".env" (no .example)
+   (Windows might warn you — click Yes)
+3. Right-click ".env" → Open with → Notepad
+4. Replace each "your_..._key_here" with your actual keys:
+
+   BALLDONTLIE_KEY=paste_your_key_here
+   ANTHROPIC_KEY=paste_your_key_here
+   ODDS_API_KEY=paste_your_key_here
+   RAPIDAPI_KEY=paste_your_key_here
+
+5. Save and close Notepad
+
+## STEP 5 — Install dependencies
+1. Press Windows Key + R, type "cmd", press Enter
+2. Navigate to your folder:
+   cd Desktop\WIN-AI
+3. Install packages (copy/paste this exactly):
+   npm install
+4. Wait about 30 seconds for it to finish
+   You'll see a "node_modules" folder appear
+
+## STEP 6 — Start WIN AI
+In the same command prompt window, type:
+   node server.js
+
+You should see the WIN AI logo appear and:
+   NBA Props Engine running on http://localhost:3001
+
+## STEP 7 — Open the bot
+1. Open Chrome or any browser
+2. Go to: http://localhost:3001
+3. WIN AI loads — you're live!
+
+## EVERY TIME you want to use it:
+1. Open Command Prompt
+2. Type: cd Desktop\WIN-AI
+3. Type: node server.js
+4. Open browser to: http://localhost:3001
+5. When done, close the Command Prompt window
+
+========================================
+## TROUBLESHOOTING
+
+"node is not recognized"
+→ Restart your computer after installing Node.js
+
+"ENOENT .env"
+→ Make sure you renamed .env.example to .env (not .env.txt)
+
+"401 Unauthorized" errors
+→ Your API key is wrong — double check .env file has no spaces around the = sign
+
+"Player not found"
+→ Try the player's full name exactly (e.g. "LeBron James" not "Lebron")
+
+"Port 3001 already in use"
+→ In .env file, change PORT=3001 to PORT=3002, then go to localhost:3002
+
+No live prop lines showing
+→ The Odds API free tier is limited — prop lines only appear on game days
+   and count against your 500/month limit. This is normal.
+
+========================================
+## GOING LIVE 24/7 (optional — $5/month)
+
+To keep WIN AI running even when your computer is off:
+1. Create account at: https://railway.app
+2. Push your files to GitHub (google "how to push to github")
+3. Connect Railway to your GitHub repo
+4. Add your .env keys in Railway's dashboard (Variables section)
+5. Deploy — Railway gives you a URL like: https://win-ai.up.railway.app
+6. Open that URL from any device, anywhere
+
+========================================
+Questions? The most common issue is the .env file.
+Open it in Notepad and make sure each line looks like:
+ANTHROPIC_KEY=sk-ant-abc123...  (no spaces, no quotes)

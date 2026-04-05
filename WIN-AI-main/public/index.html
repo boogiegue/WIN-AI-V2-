@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WIN AI — NBA Props Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0a0f;--surface:#111118;--surface2:#18181f;
+    --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+    --gold:#d4a844;--gold2:#f0c96a;--green:#2ecc71;--red:#e74c3c;
+    --amber:#f39c12;--blue:#4a9eff;--text:#e8e8f0;--muted:#7a7a8c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+  header{border-bottom:1px solid var(--border);padding:18px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(10,10,15,0.97);backdrop-filter:blur(12px);z-index:100;}
+  .logo{font-family:'Bebas Neue',cursive;font-size:26px;letter-spacing:3px;color:var(--gold);line-height:1;}
+  .logo span{color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;letter-spacing:2px;display:block;margin-top:2px;}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  .today-games{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 12px;max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tabs{display:flex;gap:2px;padding:14px 28px 0;border-bottom:1px solid var(--border);}
+  .tab{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:9px 18px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;cursor:pointer;color:var(--muted);background:transparent;transition:all 0.15s;}
+  .tab.active{color:var(--gold);border-color:var(--border2);background:var(--surface);border-bottom:1px solid var(--surface);margin-bottom:-1px;}
+  .tab:hover:not(.active){color:var(--text);}
+  .panel{display:none;padding:24px 28px;}
+  .panel.active{display:block;}
+  .analyzer-grid{display:grid;grid-template-columns:340px 1fr;gap:20px;max-width:1200px;}
+  .input-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:16px;}
+  .card-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:4px;}
+  .field-group{display:flex;flex-direction:column;gap:5px;}
+  .field-group label{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1px;}
+  .field-group input,.field-group select{background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:9px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;outline:none;transition:border-color 0.15s;width:100%;}
+  .field-group input:focus,.field-group select:focus{border-color:var(--gold);}
+  .field-group select option{background:#18181f;}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .field-wrap{position:relative;}
+  .suggestion-box{position:absolute;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;margin-top:2px;z-index:200;width:100%;max-height:180px;overflow-y:auto;display:none;}
+  .suggestion-box.open{display:block;}
+  .suggestion-item{padding:9px 12px;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;}
+  .suggestion-item:hover{background:var(--surface);color:var(--gold);}
+  .analyze-btn{background:var(--gold);color:#0a0a0f;border:none;border-radius:8px;padding:13px;font-family:'Bebas Neue',cursive;font-size:17px;letter-spacing:2px;cursor:pointer;transition:all 0.15s;margin-top:4px;}
+  .analyze-btn:hover:not(:disabled){background:var(--gold2);transform:translateY(-1px);}
+  .analyze-btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .result-area{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;min-height:460px;display:flex;flex-direction:column;}
+  .result-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);}
+  .placeholder-icon{font-size:40px;opacity:0.2;}
+  .placeholder-text{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-align:center;line-height:2;}
+
+  /* DATA SOURCE BANNER */
+  .data-source-banner{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;}
+  .data-source-banner .banner-title{color:var(--gold);margin-bottom:6px;}
+  .data-source-grid{display:flex;flex-wrap:wrap;gap:6px;}
+  .source-tag{padding:3px 8px;border-radius:4px;font-size:10px;}
+  .source-tag.live{background:rgba(46,204,113,0.12);color:var(--green);border:1px solid rgba(46,204,113,0.2);}
+  .source-tag.missing{background:rgba(231,76,60,0.12);color:var(--red);border:1px solid rgba(231,76,60,0.2);}
+  .source-tag.inferred{background:rgba(243,156,18,0.12);color:var(--amber);border:1px solid rgba(243,156,18,0.2);}
+
+  /* AI DISCLAIMER BOX */
+  .ai-disclaimer{background:rgba(243,156,18,0.06);border:1px solid rgba(243,156,18,0.2);border-radius:8px;padding:12px 14px;margin:14px 0;font-size:11px;line-height:1.7;color:var(--amber);}
+  .ai-disclaimer strong{color:var(--gold);}
+
+  .data-strip{display:flex;gap:8px;flex-wrap:wrap;background:rgba(212,168,68,0.06);border:1px solid rgba(212,168,68,0.15);border-radius:8px;padding:10px 14px;margin-bottom:14px;}
+  .data-badge{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,0.05);color:var(--muted);}
+  .data-badge.live{color:var(--gold);background:rgba(212,168,68,0.1);}
+  .stats-row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
+  .stat-chip{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center;min-width:70px;}
+  .stat-chip .sv{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--text);}
+  .stat-chip .sl{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px;}
+  .stat-chip.verified{border-color:rgba(46,204,113,0.3);}
+  .stat-chip .src{font-size:9px;color:var(--green);font-family:'DM Mono',monospace;margin-top:1px;}
+
+  /* LIVE STAT TABLE */
+  .live-stat-table{width:100%;border-collapse:collapse;font-family:'DM Mono',monospace;font-size:11px;margin:8px 0;}
+  .live-stat-table th{color:var(--muted);letter-spacing:1px;text-align:left;padding:5px 8px;border-bottom:1px solid var(--border);}
+  .live-stat-table td{padding:6px 8px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);}
+  .live-stat-table .verified-cell{color:var(--green);}
+  .live-stat-table tr:hover td{background:var(--surface2);}
+
+  .mini-table{width:100%;border-collapse:collapse;font-family:'DM Mono',monospace;font-size:11px;margin:8px 0;}
+  .mini-table th{color:var(--muted);letter-spacing:1px;text-align:left;padding:5px 8px;border-bottom:1px solid var(--border);}
+  .mini-table td{padding:6px 8px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);}
+  .mini-table tr:hover td{background:var(--surface2);}
+
+  .verdict-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 18px;border-radius:100px;font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:3px;}
+  .verdict-badge.over{background:rgba(46,204,113,0.12);color:var(--green);border:1px solid rgba(46,204,113,0.25);}
+  .verdict-badge.under{background:rgba(231,76,60,0.12);color:var(--red);border:1px solid rgba(231,76,60,0.25);}
+  .verdict-badge.pass{background:rgba(243,156,18,0.12);color:var(--amber);border:1px solid rgba(243,156,18,0.25);}
+  .conf-wrap{margin:10px 0 16px;}
+  .conf-labels{display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:5px;}
+  .conf-bar{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+  .conf-fill{height:100%;border-radius:3px;transition:width 0.8s cubic-bezier(0.4,0,0.2,1);}
+  .conf-fill.over{background:var(--green);}
+  .conf-fill.under{background:var(--red);}
+  .conf-fill.pass{background:var(--amber);}
+  .factor-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0;}
+  .factor-pill{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 11px;display:flex;align-items:flex-start;gap:8px;}
+  .fi{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+  .fi.pos{background:rgba(46,204,113,0.12);color:var(--green);}
+  .fi.neg{background:rgba(231,76,60,0.12);color:var(--red);}
+  .factor-txt{font-size:11px;color:var(--text);line-height:1.5;}
+  .section-divider{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:14px 0 8px;display:flex;align-items:center;gap:8px;}
+  .section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+  .analysis-box{background:var(--surface2);border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.8;color:var(--text);opacity:0.9;}
+  .analysis-text{font-size:13px;line-height:1.85;color:var(--text);opacity:0.85;white-space:pre-wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+  .bottom-line{margin-top:14px;padding:12px 14px;border-left:3px solid var(--gold);background:rgba(212,168,68,0.05);border-radius:0 8px 8px 0;font-family:'DM Mono',monospace;font-size:12px;color:var(--gold);line-height:1.6;}
+  .outlier-strip{margin:8px 0;background:rgba(212,168,68,0.06);border:1px solid rgba(212,168,68,0.2);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px;}
+  .outlier-strip p{font-size:12px;line-height:1.6;}
+  .outlier-strip strong{color:var(--gold);}
+  .loading-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+  .spinner{width:36px;height:36px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-steps{display:flex;flex-direction:column;gap:4px;align-items:center;}
+  .ls{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;opacity:0;transition:opacity 0.25s;}
+  .ls.on{opacity:1;color:var(--gold);}
+  .ls.done{opacity:0.35;color:var(--muted);}
+  .schedule-strip{display:flex;gap:8px;overflow-x:auto;padding:16px 0 4px;margin-bottom:20px;}
+  .game-chip{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;white-space:nowrap;cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);transition:all 0.15s;flex-shrink:0;}
+  .game-chip:hover{border-color:var(--gold);color:var(--gold);}
+  .matchup-input-row{display:flex;gap:10px;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;}
+  .matchup-input-row input{background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:9px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;outline:none;flex:1;min-width:180px;}
+  .scan-btn{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 16px;color:var(--gold);font-family:'DM Mono',monospace;font-size:12px;letter-spacing:1px;cursor:pointer;white-space:nowrap;transition:all 0.15s;}
+  .scan-btn:hover{border-color:var(--gold);background:rgba(212,168,68,0.08);}
+  .matchup-result{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;min-height:280px;}
+  .history-list{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+  .history-item{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:border-color 0.15s;}
+  .history-item:hover{border-color:var(--border2);}
+  .h-player{font-weight:500;font-size:14px;}
+  .h-meta{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:0.5px;}
+  .h-verdict{font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:2px;padding:3px 12px;border-radius:100px;}
+  .h-verdict.over{color:var(--green);background:rgba(46,204,113,0.1);}
+  .h-verdict.under{color:var(--red);background:rgba(231,76,60,0.1);}
+  .h-verdict.pass{color:var(--amber);background:rgba(243,156,18,0.1);}
+  ::-webkit-scrollbar{width:3px;height:3px;}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+  @media(max-width:860px){.analyzer-grid{grid-template-columns:1fr;}.factor-grid{grid-template-columns:1fr;}.panel{padding:16px;}header{padding:14px 16px;}.today-games{display:none;}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">WIN AI <span>NBA PROPS ENGINE</span></div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div class="today-games"><span class="live-dot"></span><span id="games-text">Loading today's games...</span></div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('analyzer',this)">PROP ANALYZER</button>
+  <button class="tab" onclick="switchTab('matchups',this)">DAILY MATCHUPS</button>
+  <button class="tab" onclick="switchTab('history',this)">HISTORY</button>
+</div>
+
+<div id="panel-analyzer" class="panel active">
+  <div class="analyzer-grid">
+    <div class="input-card">
+      <div class="card-label">Player Prop Input</div>
+      <div class="field-group">
+        <label>PLAYER NAME</label>
+        <div class="field-wrap">
+          <input type="text" id="player-name" placeholder="e.g. Anthony Edwards" autocomplete="off" oninput="onPlayerInput(this.value)" />
+          <div class="suggestion-box" id="player-suggestions"></div>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>OPPOSING TEAM <span id="opp-auto-label" style="color:var(--green);font-size:9px;letter-spacing:1px;margin-left:6px;"></span></label>
+        <div style="position:relative;">
+          <input type="text" id="opp-team" placeholder="Auto-detected from today's schedule..." maxlength="50" />
+          <div id="opp-status" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-family:'DM Mono',monospace;font-size:11px;color:var(--green);pointer-events:none;"></div>
+        </div>
+        <div id="matchup-info" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;min-height:14px;"></div>
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label>PROP TYPE</label>
+          <select id="prop-type">
+            <option value="points">Points</option>
+            <option value="rebounds">Rebounds</option>
+            <option value="assists">Assists</option>
+            <option value="3pm">3-Pointers Made</option>
+            <option value="pra">Pts+Reb+Ast</option>
+            <option value="steals">Steals</option>
+            <option value="blocks">Blocks</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>LINE</label>
+          <input type="number" id="prop-line" step="0.5" placeholder="24.5" />
+        </div>
+      </div>
+      <div class="field-group">
+        <label>GAME CONTEXT</label>
+        <select id="game-context">
+          <option value="unknown">Let AI assess</option>
+          <option value="close">Projected close game</option>
+          <option value="blowout-likely">Blowout likely (-12+)</option>
+          <option value="underdog">Team is heavy underdog</option>
+          <option value="back-to-back">Back-to-back game</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>NOTES (optional)</label>
+        <input type="text" id="extra-context" placeholder="e.g. star teammate out, revenge game..." />
+      </div>
+      <button class="analyze-btn" id="analyze-btn" onclick="analyzeProp()">ANALYZE PROP</button>
+    </div>
+    <div class="result-area" id="result-area">
+      <div class="result-placeholder">
+        <div class="placeholder-icon">◈</div>
+        <div class="placeholder-text">ENTER A PLAYER + OPPONENT + LINE<br>REAL NBA.COM DATA FEEDS EVERY ANALYSIS<br><br>ALL CITED STATS ARE LABELED BY SOURCE<br>LIVE DATA · AI INFERENCE · NOT AVAILABLE</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="panel-matchups" class="panel">
+  <div class="card-label" style="margin-bottom:8px;">Today's Schedule</div>
+  <div class="schedule-strip" id="schedule-strip"><div class="game-chip">Loading...</div></div>
+  <div class="card-label" style="margin-bottom:8px;margin-top:8px;">Matchup Scanner</div>
+  <div class="matchup-input-row">
+    <input type="text" id="matchup-team1" placeholder="Team 1 (e.g. OKC Thunder)" />
+    <div style="font-family:'Bebas Neue',cursive;font-size:18px;color:var(--muted);padding-bottom:9px;">VS</div>
+    <input type="text" id="matchup-team2" placeholder="Team 2 (e.g. Denver Nuggets)" />
+    <button class="scan-btn" onclick="analyzeMatchup()">SCAN MATCHUP →</button>
+  </div>
+  <div class="matchup-result" id="matchup-result">
+    <div style="display:flex;align-items:center;justify-content:center;height:220px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;flex-direction:column;gap:10px;">
+      <div style="font-size:32px;opacity:0.15;">⬡</div>CLICK A GAME ABOVE OR ENTER TWO TEAMS
+    </div>
+  </div>
+</div>
+
+<div id="panel-history" class="panel">
+  <div class="card-label" style="margin-bottom:14px;">Analysis History</div>
+  <div class="history-list" id="history-list">
+    <div style="color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;padding:16px 0;">NO ANALYSES YET</div>
+  </div>
+</div>
+
+<script>
+const analysisHistory = [];
+const NBA_PLAYERS = ['LeBron James','Stephen Curry','Kevin Durant','Giannis Antetokounmpo','Luka Doncic','Shai Gilgeous-Alexander','Joel Embiid','Nikola Jokic','Jayson Tatum','Damian Lillard','Anthony Davis','Jimmy Butler','Anthony Edwards','Devin Booker','Trae Young','Donovan Mitchell','Paul George','Kawhi Leonard','Zion Williamson','Ja Morant','Bam Adebayo','Karl-Anthony Towns','Darius Garland','Cade Cunningham','Tyrese Haliburton','Jalen Brunson','De\'Aaron Fox','Lauri Markkanen','Evan Mobley','Paolo Banchero','Franz Wagner','Scottie Barnes','Victor Wembanyama','Chet Holmgren','Alperen Sengun','Brandon Ingram','Dejounte Murray','Mikal Bridges','Jaylen Brown','Kristaps Porzingis','OG Anunoby','RJ Barrett'];
+
+window.addEventListener('DOMContentLoaded', () => {
+  loadTodaysGames();
+  document.addEventListener('click', e => { if (!e.target.closest('.field-wrap')) closeSuggestions(); });
+
+  // Clear auto-filled flag when user manually edits opponent
+  const oppInput = document.getElementById('opp-team');
+  if (oppInput) {
+    oppInput.addEventListener('input', () => {
+      oppInput.dataset.autoFilled = 'false';
+      document.getElementById('opp-auto-label').textContent = '';
+      document.getElementById('opp-status').textContent = '';
+    });
+  }
+});
+
+async function loadTodaysGames() {
+  try {
+    const data = await apiGet('/api/today');
+    const games = data.games || [];
+    document.getElementById('games-text').textContent = games.length
+      ? games.map(g => `${g.away.split(' ').pop()} @ ${g.home.split(' ').pop()}`).join('  ·  ')
+      : 'No games today';
+    const strip = document.getElementById('schedule-strip');
+    strip.innerHTML = games.length
+      ? games.map(g => `<div class="game-chip" onclick="prefillMatchup('${g.away}','${g.home}')">${g.away.split(' ').slice(-1)[0]} @ ${g.home.split(' ').slice(-1)[0]}</div>`).join('')
+      : '<div class="game-chip">No games today</div>';
+  } catch (err) {
+    console.error('Games load error:', err.message);
+    document.getElementById('games-text').textContent = 'Could not load schedule — check server';
+    // Try debug endpoint to give user more info
+    fetch('/api/debug').then(r=>r.json()).then(d=>{
+      if (!d.balldontlie?.ok) {
+        document.getElementById('games-text').textContent = 
+          `BallDontLie API error: ${d.balldontlie?.status || 'no response'} — check API key`;
+      }
+    }).catch(()=>{
+      document.getElementById('games-text').textContent = 'Server not running — start node server.js';
+    });
+  }
+}
+
+function onPlayerInput(val) {
+  const box = document.getElementById('player-suggestions');
+  if (val.length < 2) { box.classList.remove('open'); return; }
+  const matches = NBA_PLAYERS.filter(p => p.toLowerCase().includes(val.toLowerCase())).slice(0, 6);
+  if (!matches.length) { box.classList.remove('open'); return; }
+  box.innerHTML = matches.map(p => `<div class="suggestion-item" onclick="selectPlayer('${p}')">${p}</div>`).join('');
+  box.classList.add('open');
+  // Also trigger matchup lookup for manual typing (debounced 800ms)
+  clearTimeout(_matchupTimer);
+  if (val.length >= 5) {
+    _matchupTimer = setTimeout(() => lookupTodayMatchup(val), 800);
+  }
+}
+function selectPlayer(name) {
+  document.getElementById('player-name').value = name;
+  closeSuggestions();
+  // Immediately clear old matchup info and trigger lookup
+  document.getElementById('matchup-info').textContent = 'Finding today\'s matchup...';
+  document.getElementById('matchup-info').style.color = 'var(--muted)';
+  document.getElementById('opp-status').textContent = '⟳';
+  clearTimeout(_matchupTimer);
+  // No delay — run immediately on selection
+  lookupTodayMatchup(name);
+}
+function closeSuggestions() { document.getElementById('player-suggestions').classList.remove('open'); }
+
+// ── AUTO-DETECT TODAY'S OPPONENT ─────────────────────────────────
+let _matchupTimer = null;
+let _lastMatchupPlayer = '';
+
+async function lookupTodayMatchup(playerName) {
+  if (!playerName || playerName.length < 4) return;
+  _lastMatchupPlayer = playerName;
+
+  const statusEl = document.getElementById('opp-status');
+  const infoEl   = document.getElementById('matchup-info');
+  const oppInput = document.getElementById('opp-team');
+  const labelEl  = document.getElementById('opp-auto-label');
+
+  statusEl.textContent     = '⟳';
+  infoEl.style.color       = 'var(--muted)';
+  infoEl.textContent       = 'Looking up today\'s schedule...';
+
+  try {
+    const data = await apiGet(`/api/player-matchup?name=${encodeURIComponent(playerName)}`);
+
+    if (!data.found) {
+      statusEl.textContent = '';
+      infoEl.textContent   = 'Player not found in schedule';
+      return;
+    }
+
+    if (!data.playing) {
+      statusEl.textContent = '—';
+      infoEl.style.color   = 'var(--amber)';
+      infoEl.textContent   = `${data.team} has no game today — enter opponent manually`;
+      oppInput.placeholder = 'Enter opponent manually...';
+      return;
+    }
+
+    // Always auto-fill — user can override by typing
+    oppInput.value              = data.opponent;
+    oppInput.dataset.autoFilled = 'true';
+    labelEl.textContent         = '✓ AUTO';
+    statusEl.textContent        = '✓';
+    infoEl.style.color          = 'var(--green)';
+    infoEl.textContent          = `${data.team} ${data.isHome ? 'vs' : '@'} ${data.opponent} · ${data.gameTime}`;
+
+  } catch (err) {
+    statusEl.textContent = '';
+    infoEl.textContent   = 'Could not load schedule — enter opponent manually';
+  }
+}
+
+// Clear auto-filled flag when user manually edits opponent
+document.addEventListener('DOMContentLoaded', () => {
+  const oppInput = document.getElementById('opp-team');
+  if (oppInput) {
+    oppInput.addEventListener('input', () => {
+      oppInput.dataset.autoFilled = 'false';
+      document.getElementById('opp-auto-label').textContent = '';
+    });
+  }
+});
+
+// ── BUILD PROMPT WITH STRICT DATA LABELING ────────────
+function buildEnrichedPrompt(player, opp, propType, line, context, extra, ctx) {
+  const stats = ctx.playerStats;
+  const hasRealStats = stats && !stats.error;
+  const da = ctx.dataAvailable || {};
+
+  // ESPN roster helpers
+  const oppRoster    = ctx.oppRoster?.players || [];
+  const playerRoster = ctx.playerRoster?.players || [];
+  const hasOppRoster = oppRoster.length > 0;
+
+  // Build a clear data inventory for Claude
+  const dataInventory = `
+DATA AVAILABILITY FOR THIS ANALYSIS:
+  Rolling averages (BallDontLie): ${hasRealStats ? 'YES — use these numbers directly' : 'NO'}
+  Team pace / off-def rating (nba.com): ${ctx.oppAdvanced ? 'YES' : 'NO'}
+  Opponent shooting % allowed (nba.com): ${ctx.oppShooting ? 'YES' : 'NO'}
+  Paint defense stats (nba.com): ${ctx.oppPaintDef ? 'YES' : 'NO'}
+  Player paint touches (nba.com): ${ctx.playerPaintStats ? 'YES' : 'NO'}
+  Live prop lines: ${ctx.propLines?.softestLine ? 'YES' : 'NO'}
+  ESPN opponent roster (post-trade): ${hasOppRoster ? 'YES' : 'NO'}
+  ESPN player team roster (post-trade): ${playerRoster.length > 0 ? 'YES' : 'NO'}
+  Player advanced stats (nba.com): ${ctx.playerAdvancedStats ? 'YES' : 'NO'}
+  Player playtypes (Synergy): ${Object.keys(ctx.playerPlaytypes||{}).length > 0 ? 'YES (' + Object.keys(ctx.playerPlaytypes).length + ' play types)' : 'NO'}
+  Player tracking (nba.com): ${Object.keys(ctx.playerTracking||{}).length > 0 ? 'YES (' + Object.keys(ctx.playerTracking).length + ' categories)' : 'NO'}
+  Player shot dashboard (nba.com): ${ctx.playerShotDash?.general ? 'YES' : 'NO'}
+  Opponent defense by playtype: ${Object.keys(ctx.oppDefPlaytypes||{}).length > 0 ? 'YES (' + Object.keys(ctx.oppDefPlaytypes).length + ' play types)' : 'NO'}
+  Opponent four factors (nba.com): ${ctx.oppFourFact ? 'YES' : 'NO'}
+  Opponent misc stats (paint pts, FB): ${ctx.oppMisc ? 'YES' : 'NO'}
+  Hustle stats (nba.com): ${ctx.playerHustle ? 'YES' : 'NO'}
+  Today confirmed game: ${ctx.todayGame ? 'YES' : 'NO'}`;
+
+  // Real numbers block
+  let realDataBlock = '';
+  if (hasRealStats) {
+    const last5 = (stats.last5Games || []).map(g =>
+      `  ${g.date} vs ${g.opponent || 'Opp'}: ${g.pts}pts ${g.reb}reb ${g.ast}ast (${g.min}min, ${g.fg_pct} FG)`
+    ).join('\n');
+    realDataBlock += `
+PLAYER ROLLING STATS — SOURCE: BallDontLie API (VERIFIED LIVE):
+  Name: ${stats.player?.name} | Team: ${stats.player?.team} | Pos: ${stats.player?.position} | Height: ${stats.player?.height}
+  Form: ${stats.form} | Minutes Stability: ${stats.minutesStability}
+  L10 Averages: ${stats.averages.pts}pts / ${stats.averages.reb}reb / ${stats.averages.ast}ast / ${stats.averages.fg3m} 3PM / ${stats.averages.min}min / ${stats.averages.fg_pct} FG%
+  Last 5 games:
+${last5}`;
+  }
+
+  if (ctx.oppAdvanced) {
+    realDataBlock += `
+OPPONENT TEAM ADVANCED — SOURCE: nba.com (VERIFIED LIVE):
+  Team: ${opp}
+  Pace: ${ctx.oppAdvanced.PACE}
+  Offensive Rating: ${ctx.oppAdvanced.OFF_RATING}
+  Defensive Rating: ${ctx.oppAdvanced.DEF_RATING}
+  True Shooting% Allowed: ${ctx.oppAdvanced.TS_PCT}`;
+  }
+
+  if (ctx.oppShooting) {
+    realDataBlock += `
+OPPONENT SHOOTING ALLOWED — SOURCE: nba.com (VERIFIED LIVE):
+  Opp FG%: ${ctx.oppShooting.OPP_FG_PCT}
+  Opp 3P%: ${ctx.oppShooting.OPP_FG3_PCT}
+  Opp 3PM/g: ${ctx.oppShooting.OPP_FG3M}
+  Opp PTS/g: ${ctx.oppShooting.OPP_PTS}`;
+  }
+
+  if (ctx.oppPaintDef) {
+    realDataBlock += `
+OPPONENT PAINT DEFENSE — SOURCE: nba.com (VERIFIED LIVE):
+  Paint FGA/g allowed: ${ctx.oppPaintDef.FGA}
+  Paint FG%: ${ctx.oppPaintDef.FG_PCT}
+  Paint FGM/g: ${ctx.oppPaintDef.FGM}`;
+  }
+
+  if (ctx.playerPaintStats) {
+    realDataBlock += `
+PLAYER PAINT STATS — SOURCE: nba.com (VERIFIED LIVE):
+  Paint touches/g: ${ctx.playerPaintStats.PAINT_TOUCHES}
+  Paint FGA/g: ${ctx.playerPaintStats.FGA}
+  Paint FG%: ${ctx.playerPaintStats.FG_PCT}`;
+  }
+
+  if (ctx.playerTeamAdvanced) {
+    realDataBlock += `
+PLAYER'S TEAM ADVANCED — SOURCE: nba.com (VERIFIED LIVE):
+  Pace: ${ctx.playerTeamAdvanced.PACE}
+  Off Rating: ${ctx.playerTeamAdvanced.OFF_RATING}`;
+  }
+
+  if (ctx.propLines?.softestLine) {
+    realDataBlock += `
+LIVE PROP LINES — SOURCE: The Odds API (VERIFIED LIVE):
+  Softest line: ${ctx.propLines.softestLine} on ${ctx.propLines.softestBook}`;
+  }
+
+  if (ctx.allTodaysGames?.length) {
+    realDataBlock += `
+TODAY'S CONFIRMED GAMES: ${ctx.allTodaysGames.join(' · ')}`;
+  }
+
+  // ESPN opponent roster
+  if (oppRoster.length > 0) {
+    const injuredOpp = ctx.oppRoster?.injured || [];
+    const rosterLines = oppRoster.map(p =>
+      `  ${p.name} (${p.position}, ${p.height})${p.status !== 'Active' ? ' [' + p.status + ']' : ''}`
+    ).join('\n');
+    realDataBlock += `
+OPPONENT ROSTER — SOURCE: ESPN (POST-TRADE DEADLINE, LIVE):
+  Team: ${opp} | ${ctx.oppRoster.playerCount} players
+${rosterLines}`;
+    if (injuredOpp.length > 0) {
+      realDataBlock += `
+  INJURED/OUT: ${injuredOpp.map(p => p.name + ' (' + p.status + ')').join(', ')}`;
+    }
+  }
+
+  // Player team roster — injured teammates affect usage
+  if (playerRoster.length > 0) {
+    const injuredTeam = ctx.playerRoster?.injured || [];
+    realDataBlock += `
+PLAYER TEAM ROSTER — SOURCE: ESPN (POST-TRADE DEADLINE, LIVE):
+  Team: ${ctx.playerRoster?.team || ''} | ${playerRoster.length} players
+  ${injuredTeam.length > 0 ? 'TEAMMATES OUT: ' + injuredTeam.map(p => p.name + ' (' + p.status + ')').join(', ') : 'No major injuries on player team'}`;
+  }
+
+  // ── PLAYER ADVANCED STATS ──────────────────────────────────────
+  if (ctx.playerAdvancedStats) {
+    const a = ctx.playerAdvancedStats;
+    realDataBlock += `
+PLAYER ADVANCED — SOURCE: nba.com (VERIFIED LIVE):
+  USG%: ${a.USG_PCT} | TS%: ${a.TS_PCT} | EFG%: ${a.EFG_PCT}
+  OffRtg: ${a.OFF_RATING} | DefRtg: ${a.DEF_RATING} | NetRtg: ${a.NET_RATING}
+  OREB%: ${a.OREB_PCT} | DREB%: ${a.DREB_PCT} | AST%: ${a.AST_PCT} | TOV%: ${a.TM_TOV_PCT}
+  PIE: ${a.PIE} | PACE: ${a.PACE}`;
+  }
+
+  // ── PLAYER MISC (paint pts, 2nd chance, FB) ────────────────────
+  if (ctx.playerMiscStats) {
+    const m = ctx.playerMiscStats;
+    realDataBlock += `
+PLAYER MISC — SOURCE: nba.com (VERIFIED LIVE):
+  Pts in Paint/g: ${m.PTS_PAINT} | Pts off TOV/g: ${m.PTS_OFF_TOV}
+  2nd Chance Pts/g: ${m.PTS_2ND_CHANCE} | Fast Break Pts/g: ${m.PTS_FB}`;
+  }
+
+  // ── PLAYER SCORING DISTRIBUTION ───────────────────────────────
+  if (ctx.playerScoringDist) {
+    const sc = ctx.playerScoringDist;
+    realDataBlock += `
+PLAYER SCORING DISTRIBUTION — SOURCE: nba.com (VERIFIED LIVE):
+  % shots 2PT: ${sc.PCT_FGA_2PT} | % shots 3PT: ${sc.PCT_FGA_3PT}
+  % pts from paint: ${sc.PCT_PTS_PAINT} | % pts from 3PT: ${sc.PCT_PTS_3PT}
+  % pts from FT: ${sc.PCT_PTS_FT} | % pts off FB: ${sc.PCT_PTS_FB}
+  % assisted 2PM: ${sc.PCT_AST_2PM} | % assisted 3PM: ${sc.PCT_AST_3PM}`;
+  }
+
+  // ── PLAYER TRACKING ───────────────────────────────────────────
+  const tr = ctx.playerTracking || {};
+  if (tr.drives) {
+    realDataBlock += `
+PLAYER DRIVES — SOURCE: nba.com Tracking (VERIFIED LIVE):
+  Drives/g: ${tr.drives.DRIVES} | Drive PTS: ${tr.drives.DRIVE_PTS} | Drive FGA: ${tr.drives.DRIVE_FGA}
+  Drive FG%: ${tr.drives.DRIVE_FG_PCT} | Drive AST: ${tr.drives.DRIVE_AST} | Drive TOV: ${tr.drives.DRIVE_TOV}`;
+  }
+  if (tr.catchShoot) {
+    realDataBlock += `
+PLAYER CATCH & SHOOT — SOURCE: nba.com Tracking (VERIFIED LIVE):
+  C&S FGA/g: ${tr.catchShoot.CATCH_SHOOT_FGA} | C&S FG%: ${tr.catchShoot.CATCH_SHOOT_FG_PCT}
+  C&S 3PA/g: ${tr.catchShoot.CATCH_SHOOT_FG3A} | C&S 3P%: ${tr.catchShoot.CATCH_SHOOT_FG3_PCT}
+  C&S PTS/g: ${tr.catchShoot.CATCH_SHOOT_PTS} | EFG%: ${tr.catchShoot.CATCH_SHOOT_EFG_PCT}`;
+  }
+  if (tr.pullUp) {
+    realDataBlock += `
+PLAYER PULL-UP SHOOTING — SOURCE: nba.com Tracking (VERIFIED LIVE):
+  Pull-Up FGA/g: ${tr.pullUp.PULL_UP_FGA} | Pull-Up FG%: ${tr.pullUp.PULL_UP_FG_PCT}
+  Pull-Up 3PA/g: ${tr.pullUp.PULL_UP_FG3A} | Pull-Up 3P%: ${tr.pullUp.PULL_UP_FG3_PCT}
+  Pull-Up PTS/g: ${tr.pullUp.PULL_UP_PTS}`;
+  }
+  if (tr.touches) {
+    realDataBlock += `
+PLAYER TOUCHES — SOURCE: nba.com Tracking (VERIFIED LIVE):
+  Touches/g: ${tr.touches.TOUCHES} | FrontCt Touches: ${tr.touches.FRONT_CT_TOUCHES}
+  Time of Poss/g: ${tr.touches.TIME_OF_POSS} | Pts/Touch: ${tr.touches.PTS_PER_TOUCH}`;
+  }
+  if (tr.paint) {
+    realDataBlock += `
+PLAYER PAINT TOUCHES — SOURCE: nba.com Tracking (VERIFIED LIVE):
+  Paint Touches/g: ${tr.paint.PAINT_TOUCHES} | Paint FGA/g: ${tr.paint.PAINT_TOUCH_FGA}
+  Paint FG%: ${tr.paint.PAINT_TOUCH_FG_PCT} | Paint PTS/g: ${tr.paint.PAINT_TOUCH_PTS}`;
+  }
+  if (tr.post) {
+    realDataBlock += `
+PLAYER POST TOUCHES — SOURCE: nba.com Tracking (VERIFIED LIVE):
+  Post Touches/g: ${tr.post.POST_TOUCHES} | Post FGA/g: ${tr.post.POST_TOUCH_FGA}
+  Post FG%: ${tr.post.POST_TOUCH_FG_PCT} | Post PTS/g: ${tr.post.POST_TOUCH_PTS}`;
+  }
+  if (tr.elbow) {
+    realDataBlock += `
+PLAYER ELBOW TOUCHES — SOURCE: nba.com Tracking (VERIFIED LIVE):
+  Elbow Touches/g: ${tr.elbow.ELBOW_TOUCHES} | Elbow FGA/g: ${tr.elbow.ELBOW_TOUCH_FGA}
+  Elbow FG%: ${tr.elbow.ELBOW_TOUCH_FG_PCT} | Elbow PTS/g: ${tr.elbow.ELBOW_TOUCH_PTS}`;
+  }
+  if (tr.passing) {
+    realDataBlock += `
+PLAYER PASSING — SOURCE: nba.com Tracking (VERIFIED LIVE):
+  Passes Made/g: ${tr.passing.PASSES_MADE} | Passes Recv/g: ${tr.passing.PASSES_RECEIVED}
+  AST/g: ${tr.passing.AST} | Secondary AST/g: ${tr.passing.SECONDARY_AST}
+  Potential AST/g: ${tr.passing.POTENTIAL_AST} | AST Pts Created/g: ${tr.passing.AST_PTS_CREATED}`;
+  }
+  if (tr.offReb) {
+    realDataBlock += `
+PLAYER OFFENSIVE REBOUNDING — SOURCE: nba.com Tracking (VERIFIED LIVE):
+  OffReb Chances/g: ${tr.offReb.OREB_CHANCE} | OffReb/g: ${tr.offReb.OREB}
+  OffReb Chance%: ${tr.offReb.OREB_CHANCE_PCT}`;
+  }
+  if (tr.speed) {
+    realDataBlock += `
+PLAYER SPEED & DISTANCE — SOURCE: nba.com Tracking (VERIFIED LIVE):
+  Avg Speed: ${tr.speed.AVG_SPEED} mph | Dist/game: ${tr.speed.DIST_MILES} mi
+  Off Speed: ${tr.speed.AVG_SPEED_OFF} | Def Speed: ${tr.speed.AVG_SPEED_DEF}`;
+  }
+
+  // ── PLAYER PLAYTYPES ──────────────────────────────────────────
+  const pp = ctx.playerPlaytypes || {};
+  const playtypeLabels = {
+    iso:'Isolation', transition:'Transition', prBall:'Pick & Roll (Ball Handler)',
+    prRoll:'Pick & Roll (Roll Man)', postUp:'Post Up', spotUp:'Spot Up',
+    cut:'Cut', handoff:'Hand Off', offScreen:'Off Screen', putbacks:'Putbacks'
+  };
+  const activePT = Object.entries(pp).filter(([k,v]) => v && v.POSS > 0);
+  if (activePT.length > 0) {
+    realDataBlock += `
+PLAYER PLAYTYPES — SOURCE: nba.com Synergy (VERIFIED LIVE):`;
+    for (const [key, val] of activePT) {
+      realDataBlock += `
+  ${playtypeLabels[key] || key}: ${val.POSS} poss/g | PPP: ${val.PPP} | FG%: ${val.FG_PCT} | Freq: ${val.FREQ} | Pctile: ${val.PERCENTILE}`;
+    }
+  }
+
+  // ── PLAYER HUSTLE ─────────────────────────────────────────────
+  if (ctx.playerHustle) {
+    const h = ctx.playerHustle;
+    realDataBlock += `
+PLAYER HUSTLE — SOURCE: nba.com (VERIFIED LIVE):
+  Contested Shots/g: ${h.CONTESTED_SHOTS} | Deflections/g: ${h.DEFLECTIONS}
+  Screen Assists/g: ${h.SCREEN_ASSISTS} | Charges Drawn/g: ${h.CHARGES_DRAWN}
+  Loose Balls Rec/g: ${h.LOOSE_BALLS_RECOVERED}`;
+  }
+
+  // ── PLAYER SHOT DASHBOARD ─────────────────────────────────────
+  if (ctx.playerShotDash?.general) {
+    const sg = ctx.playerShotDash.general;
+    realDataBlock += `
+PLAYER SHOT DASHBOARD (General) — SOURCE: nba.com (VERIFIED LIVE):
+  (Use to understand shot distribution by zone — see shot location breakdown)`;
+  }
+
+  // ── OPPONENT TEAM FOUR FACTORS ────────────────────────────────
+  if (ctx.oppFourFact) {
+    const ff = ctx.oppFourFact;
+    realDataBlock += `
+OPPONENT FOUR FACTORS — SOURCE: nba.com (VERIFIED LIVE):
+  EFG% Allowed: ${ff.OPP_EFG_PCT} | TOV% Forced: ${ff.OPP_TOV_PCT}
+  OREB% Allowed: ${ff.OPP_OREB_PCT} | FTA Rate Allowed: ${ff.OPP_FTA_RATE}
+  Own EFG%: ${ff.EFG_PCT} | Own TOV%: ${ff.TM_TOV_PCT}`;
+  }
+
+  // ── OPPONENT MISC (paint pts allowed, fast break pts allowed) ─
+  if (ctx.oppMisc) {
+    const om = ctx.oppMisc;
+    realDataBlock += `
+OPPONENT MISC — SOURCE: nba.com (VERIFIED LIVE):
+  Paint Pts Allowed/g: ${om.OPP_PTS_PAINT} | FB Pts Allowed/g: ${om.OPP_PTS_FB}
+  2nd Chance Pts Allowed/g: ${om.OPP_PTS_2ND_CHANCE} | Pts off TOV Allowed/g: ${om.OPP_PTS_OFF_TOV}`;
+  }
+
+  // ── OPPONENT DEFENSE BY PLAYTYPE ──────────────────────────────
+  const od = ctx.oppDefPlaytypes || {};
+  const activeOD = Object.entries(od).filter(([k,v]) => v && v.POSS > 0);
+  if (activeOD.length > 0) {
+    realDataBlock += `
+OPPONENT DEFENSE BY PLAYTYPE — SOURCE: nba.com Synergy (VERIFIED LIVE):
+  (Lower PPP = better defense, Higher PPP = exploitable)`;
+    for (const [key, val] of activeOD) {
+      realDataBlock += `
+  vs ${playtypeLabels[key] || key}: ${val.POSS} poss/g | PPP Allowed: ${val.PPP} | FG% Allowed: ${val.FG_PCT} | Pctile: ${val.PERCENTILE}`;
+    }
+  }
+
+  // ── OPPONENT SHOT DEFENSE DASHBOARD ───────────────────────────
+  if (ctx.oppShotDefense?.general) {
+    realDataBlock += `
+OPPONENT SHOT DEFENSE — SOURCE: nba.com (VERIFIED LIVE):
+  (How the opponent's defense performs by shot type and situation)`;
+  }
+
+  // ── OPPONENT HUSTLE ───────────────────────────────────────────
+  if (ctx.oppHustle) {
+    const oh = ctx.oppHustle;
+    realDataBlock += `
+OPPONENT HUSTLE — SOURCE: nba.com (VERIFIED LIVE):
+  Contested Shots/g: ${oh.CONTESTED_SHOTS} | Deflections/g: ${oh.DEFLECTIONS}
+  Screen Assists/g: ${oh.SCREEN_ASSISTS} | Charges Drawn/g: ${oh.CHARGES_DRAWN}`;
+  }
+
+  // Math projection block - passed to Claude as ground truth
+  const mp = ctx.mathProjection;
+  const mathBlock = mp ? `
+════════════════════════════════
+MATHEMATICAL PROJECTION (calculated server-side, independent of posted line)
+════════════════════════════════
+Projection: ${mp.projection} ${propType}
+  L5 Average: ${mp.l5Avg} | L10 Average: ${mp.l10Avg}
+  Pace Adjustment: Opp pace ${mp.oppPace || 'N/A'} vs league avg 99.5
+  Defensive Coefficient: ${mp.dvpCoeff} (opp def rating ${mp.oppDefRtg || 'N/A'})
+  Usage Multiplier: ${mp.usageMult} (teammate injuries factored)
+  Form: ${mp.form}
+  Math Confidence: ${mp.confidence}%
+
+EDGE vs POSTED LINE:
+  Posted Line: ${line}
+  Math Projection: ${mp.projection}
+  Raw Edge: ${((mp.projection - parseFloat(line)) / parseFloat(line) * 100).toFixed(1)}%
+  Direction: ${mp.projection > parseFloat(line) ? 'OVER favored by math' : mp.projection < parseFloat(line) ? 'UNDER favored by math' : 'LINE appears fair'}
+
+IMPORTANT: Your projection in the response MUST be close to ${mp.projection} — this is calculated from real rolling averages, pace, and defensive data. Do NOT anchor your projection to the posted line of ${line}. The line is what we are evaluating AGAINST the projection, not a target to reverse-engineer.
+════════════════════════════════` : `No math projection available — use your best estimate from the data above.`;
+
+  return `You are WIN AI, an elite NBA prop betting analyst. You have access to real-time verified data AND a server-calculated mathematical projection.
+
+CRITICAL INSTRUCTION — DATA SOURCING RULES:
+You MUST label every specific statistic you cite in your analysis with one of these tags:
+  [LIVE] = came from the verified data block below
+  [AI] = from your training knowledge (may be outdated — flag it)
+  [N/A] = data not available in the feed
+
+When you use [AI] for a specific number, add a note: "verify on nba.com before betting"
+NEVER state a specific number confidently without tagging its source.
+If paint points allowed, shot chart zones, or positional defense data is NOT in the live block, say so explicitly — do NOT invent numbers.
+
+ANTI-ANCHORING RULE: Your PROJECTION must be derived from the mathematical calculation above, NOT from the posted line. The posted line is what we evaluate AGAINST. Never reverse-engineer a projection to justify the line.
+
+${dataInventory}
+
+${mathBlock}
+
+════════════════════════════════
+VERIFIED LIVE DATA
+════════════════════════════════
+${realDataBlock || 'No live data available — all analysis will be AI inference. Cross-check stats before betting.'}
+════════════════════════════════
+
+USER REQUEST:
+Player: ${player}
+Opponent: ${opp}
+Prop: ${propType} — Line: ${line}
+Context: ${context}
+Notes: ${extra || 'None'}
+
+Analyze using the math projection and live data above. Your PROJECTION in the response must align with the mathematical calculation. For any factor not covered by live data, use your training knowledge but tag it [AI].
+
+Respond in EXACTLY this format:
+
+VERDICT: [OVER / UNDER / PASS]
+CONFIDENCE: [0-100]
+EDGE SCORE: [-10 to +10]
+PROJECTION: [number]
+
+KEY FACTORS:
++ [factor — tag source as LIVE or AI]
++ [factor — tag source as LIVE or AI]
+- [risk — tag source as LIVE or AI]
+- [risk — tag source as LIVE or AI]
+
+OUTLIER FLAG: [YES / NO / PARTIAL]
+
+DATA GAPS: [List any stats you could not verify from live data that would change this analysis]
+
+BLOWOUT SCENARIO: [2-3 sentences with source tags]
+
+SHOT CHART vs DEFENSE: [2-3 sentences. If zone data not in feed, say so and tag AI]
+
+H2H INSIGHT: [1-2 sentences with source tags]
+
+FULL ANALYSIS:
+[3-4 paragraphs. Every specific number tagged LIVE or AI. Flag any AI numbers for nba.com verification.]
+
+BOTTOM LINE: [One sentence. Direct take.]`;
+}
+
+// ── ANALYZE ───────────────────────────────────────────
+async function analyzeProp() {
+  const player = document.getElementById('player-name').value.trim();
+  let opp = document.getElementById('opp-team').value.trim();
+  const propType = document.getElementById('prop-type').value;
+  const line = document.getElementById('prop-line').value;
+  const context = document.getElementById('game-context').value;
+  const extra = document.getElementById('extra-context').value.trim();
+  if (!player || !line) { alert('Fill in player name and prop line.'); return; }
+  if (parseFloat(line) <= 0) { alert('Line must be a positive number.'); return; }
+
+  // Auto-detect opponent if field is empty
+  if (!opp) {
+    try {
+      const matchup = await apiGet(`/api/player-matchup?name=${encodeURIComponent(player)}`);
+      if (matchup.playing && matchup.opponent) {
+        opp = matchup.opponent;
+        document.getElementById('opp-team').value = opp;
+        document.getElementById('opp-auto-label').textContent = '✓ AUTO';
+        document.getElementById('opp-status').textContent = '✓';
+        document.getElementById('matchup-info').textContent =
+          `${matchup.team} ${matchup.isHome ? 'vs' : '@'} ${matchup.opponent} · ${matchup.gameTime}`;
+        document.getElementById('matchup-info').style.color = 'var(--green)';
+      } else if (matchup.found && !matchup.playing) {
+        alert(`${player}'s team has no game today. Enter opponent manually.`);
+        return;
+      } else {
+        alert('Could not find today\'s matchup. Please enter opponent manually.');
+        return;
+      }
+    } catch (e) {
+      alert('Please enter the opposing team manually.');
+      return;
+    }
+  }
+
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true; btn.textContent = 'FETCHING...';
+  showLoading();
+
+  try {
+    updateStep(0);
+    const ctx = await apiGet(`/api/prop-context?player=${encodeURIComponent(player)}&opponent=${encodeURIComponent(opp)}&propType=${propType}`);
+    updateStep(1);
+    const prompt = buildEnrichedPrompt(player, opp, propType, line, context, extra, ctx);
+    updateStep(2);
+    const claudeRes = await apiPost('/api/analyze', { prompt });
+    updateStep(3);
+    const parsedVerdict = parseVerdict(claudeRes.response, { ...ctx, _postedLine: line });
+    document.getElementById('result-area').innerHTML = renderResult(claudeRes.response, player, opp, propType, line, ctx, parsedVerdict);
+    analysisHistory.unshift({ player, opp, propType, line, ...parsedVerdict, raw: claudeRes.response, ctx, time: new Date() });
+    renderHistory();
+  } catch (err) {
+    const errMsg = err.message || 'Unknown error';
+    const isServerDown = errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError') || errMsg.includes('500');
+    document.getElementById('result-area').innerHTML = `
+      <div class="result-placeholder">
+        <div class="placeholder-icon" style="color:var(--red)">✕</div>
+        <div class="placeholder-text" style="color:var(--red)">
+          ERROR: ${errMsg}
+        </div>
+        <div style="margin-top:16px;background:var(--surface2);border-radius:8px;padding:14px;text-align:left;max-width:400px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--gold);letter-spacing:1px;margin-bottom:8px;">TROUBLESHOOTING</div>
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);line-height:1.8;">
+            1. Is node server.js running in Command Prompt?<br>
+            2. Open <a href="http://localhost:3001/api/debug" target="_blank" style="color:var(--gold)">localhost:3001/api/debug</a> to check all connections<br>
+            3. Check Command Prompt for error messages<br>
+            4. Make sure .env file has all API keys
+          </div>
+        </div>
+      </div>`;
+  }
+  btn.disabled = false; btn.textContent = 'ANALYZE PROP';
+}
+
+const STEPS = ['PULLING LIVE STATS...','LOADING DEFENSIVE DATA...','RUNNING AI ANALYSIS...','RENDERING...'];
+function showLoading() {
+  document.getElementById('result-area').innerHTML = `<div class="loading-state"><div class="spinner"></div><div class="loading-steps">${STEPS.map((s,i)=>`<div class="ls" id="ls${i}">${s}</div>`).join('')}</div></div>`;
+}
+function updateStep(idx) {
+  STEPS.forEach((_,i) => {
+    const el = document.getElementById(`ls${i}`);
+    if (!el) return;
+    if (i < idx) { el.classList.remove('on'); el.classList.add('done'); }
+    else if (i === idx) el.classList.add('on');
+  });
+}
+
+// ── RENDER RESULT ─────────────────────────────────────
+function renderResult(raw, player, opp, propType, line, ctx, precomputedVerdict) {
+  const { verdict, confidence, edge, projection } = precomputedVerdict || parseVerdict(raw, ctx);
+  const vc = verdict.toLowerCase();
+  const stats = ctx?.playerStats;
+  const hasStats = stats && !stats.error;
+  const da = ctx?.dataAvailable || {};
+
+  const factors = extractFactors(raw);
+  const dataGaps = extractSection(raw, 'DATA GAPS');
+  const outlier = extractSection(raw, 'OUTLIER FLAG');
+  const blowout = extractSection(raw, 'BLOWOUT SCENARIO');
+  const shotChart = extractSection(raw, 'SHOT CHART VS DEFENSE');
+  const h2h = extractSection(raw, 'H2H INSIGHT');
+  const fullAnalysis = extractSection(raw, 'FULL ANALYSIS');
+  const bottomLine = extractSection(raw, 'BOTTOM LINE');
+  const isElite = outlier.toLowerCase().startsWith('yes');
+
+  // Data source banner
+  const sourceTags = [
+    { label: 'Rolling Avgs (BallDontLie)',      live: hasStats },
+    { label: 'Player Advanced (nba.com)',        live: !!ctx?.playerAdvancedStats },
+    { label: 'Player Playtypes (Synergy)',       live: Object.keys(ctx?.playerPlaytypes||{}).length > 0 },
+    { label: 'Player Tracking (nba.com)',        live: Object.keys(ctx?.playerTracking||{}).length > 0 },
+    { label: 'Player Shot Dashboard (nba.com)',  live: !!ctx?.playerShotDash?.general },
+    { label: 'Opp Defense by Playtype',          live: Object.keys(ctx?.oppDefPlaytypes||{}).length > 0 },
+    { label: 'Opp Pace / Ratings (nba.com)',     live: !!ctx?.oppAdvanced },
+    { label: 'Opp Paint Defense (nba.com)',      live: !!ctx?.oppPaintDef },
+    { label: 'Opp Four Factors (nba.com)',       live: !!ctx?.oppFourFact },
+    { label: 'Opp Misc / Paint Pts (nba.com)',   live: !!ctx?.oppMisc },
+    { label: 'Opp Shot Defense (nba.com)',        live: !!ctx?.oppShotDefense?.general },
+    { label: 'Hustle Stats (nba.com)',           live: !!ctx?.playerHustle },
+    { label: 'Live Prop Lines',                  live: !!ctx?.propLines?.softestLine },
+    { label: 'ESPN Opp Roster (post-trade)',     live: !!(ctx?.oppRoster?.players?.length > 0) },
+    { label: 'ESPN Team Roster (post-trade)',    live: !!(ctx?.playerRoster?.players?.length > 0) },
+  ];
+
+  const sourceBanner = `
+    <div class="data-source-banner">
+      <div class="banner-title">DATA SOURCES FOR THIS ANALYSIS</div>
+      <div class="data-source-grid">
+        ${sourceTags.map(t => `<span class="source-tag ${t.live ? 'live' : 'missing'}">${t.live ? '✓' : '✗'} ${t.label}</span>`).join('')}
+        <span class="source-tag inferred">⚠ AI = inferred from training</span>
+      </div>
+    </div>`;
+
+  // AI disclaimer if any gaps
+  const missingCount = sourceTags.filter(t => !t.live).length;
+  const disclaimer = missingCount > 0 ? `
+    <div class="ai-disclaimer">
+      <strong>⚠ DATA NOTICE:</strong> ${missingCount} data source${missingCount > 1 ? 's are' : ' is'} not in the live feed.
+      Stats tagged <strong>[AI]</strong> in the analysis below are from Claude's training data and may be outdated.
+      ${dataGaps ? `<br><strong>Key gaps:</strong> ${dataGaps}` : ''}
+      Always verify [AI]-tagged numbers on <strong>nba.com</strong> before placing a bet.
+    </div>` : '';
+
+  const chips = hasStats ? `
+    <div class="stats-row">
+      <div class="stat-chip verified"><div class="sv">${stats.averages.pts}</div><div class="sl">PTS L10</div><div class="src">✓ LIVE</div></div>
+      <div class="stat-chip verified"><div class="sv">${stats.averages.reb}</div><div class="sl">REB L10</div><div class="src">✓ LIVE</div></div>
+      <div class="stat-chip verified"><div class="sv">${stats.averages.ast}</div><div class="sl">AST L10</div><div class="src">✓ LIVE</div></div>
+      <div class="stat-chip verified"><div class="sv">${stats.averages.fg3m}</div><div class="sl">3PM L10</div><div class="src">✓ LIVE</div></div>
+      <div class="stat-chip verified"><div class="sv">${stats.averages.min}</div><div class="sl">MIN L10</div><div class="src">✓ LIVE</div></div>
+      <div class="stat-chip"><div class="sv">${projection}</div><div class="sl">PROJ</div></div>
+    </div>` : '';
+
+  // Verified defensive stats
+  const defStats = (ctx?.oppAdvanced || ctx?.oppShooting || ctx?.oppPaintDef) ? `
+    <div class="section-divider">Verified Defensive Data — ${opp || 'Opponent'}</div>
+    <table class="live-stat-table">
+      <thead><tr><th>STAT</th><th>VALUE</th><th>SOURCE</th></tr></thead>
+      <tbody>
+        ${ctx?.oppAdvanced ? `
+        <tr><td>Pace</td><td class="verified-cell">${ctx.oppAdvanced.PACE}</td><td class="verified-cell">✓ nba.com</td></tr>
+        <tr><td>Def Rating</td><td class="verified-cell">${ctx.oppAdvanced.DEF_RATING}</td><td class="verified-cell">✓ nba.com</td></tr>
+        <tr><td>Off Rating</td><td class="verified-cell">${ctx.oppAdvanced.OFF_RATING}</td><td class="verified-cell">✓ nba.com</td></tr>` : ''}
+        ${ctx?.oppShooting ? `
+        <tr><td>Opp FG% Allowed</td><td class="verified-cell">${(parseFloat(ctx.oppShooting.OPP_FG_PCT)*100).toFixed(1)}%</td><td class="verified-cell">✓ nba.com</td></tr>
+        <tr><td>Opp 3P% Allowed</td><td class="verified-cell">${(parseFloat(ctx.oppShooting.OPP_FG3_PCT)*100).toFixed(1)}%</td><td class="verified-cell">✓ nba.com</td></tr>
+        <tr><td>Opp PTS/g Allowed</td><td class="verified-cell">${ctx.oppShooting.OPP_PTS}</td><td class="verified-cell">✓ nba.com</td></tr>` : ''}
+        ${ctx?.oppPaintDef ? `
+        <tr><td>Paint FGA Allowed/g</td><td class="verified-cell">${ctx.oppPaintDef.FGA}</td><td class="verified-cell">✓ nba.com</td></tr>
+        <tr><td>Paint FG% Allowed</td><td class="verified-cell">${(parseFloat(ctx.oppPaintDef.FG_PCT)*100).toFixed(1)}%</td><td class="verified-cell">✓ nba.com</td></tr>` : '<tr><td>Paint Defense</td><td style="color:var(--red)">Not in feed</td><td style="color:var(--red)">Run fetch_stats.py</td></tr>'}
+      </tbody>
+    </table>` : '';
+
+  // ESPN roster display
+  const oppRosterDisplay = ctx?.oppRoster?.players?.length > 0 ? (() => {
+    const injured = ctx.oppRoster.injured || [];
+    const active  = ctx.oppRoster.players.filter(p => p.status === 'Active').slice(0, 12);
+    return `
+    <div class="section-divider">Opponent Roster — ESPN Live (Post-Trade)</div>
+    <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--gold);margin-bottom:8px;">
+        ${ctx.oppRoster.team?.toUpperCase()} · ${ctx.oppRoster.playerCount} PLAYERS · SOURCE: ESPN ✓
+      </div>
+      ${injured.length > 0 ? `<div style="background:rgba(231,76,60,0.08);border:1px solid rgba(231,76,60,0.2);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-family:'DM Mono',monospace;font-size:11px;color:var(--red);">
+        INJURED/OUT: ${injured.map(p => p.name + ' (' + p.status + ')').join(' · ')}
+      </div>` : ''}
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${active.map(p => `<span style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text);">${p.name} <span style="color:var(--muted)">${p.position}</span></span>`).join('')}
+      </div>
+    </div>`;
+  })() : '';
+
+  const playerTeamInjuries = ctx?.playerRoster?.injured?.length > 0 ? `
+    <div class="section-divider">Player Team Injuries — ESPN Live</div>
+    <div style="background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.15);border-radius:8px;padding:10px 14px;font-family:'DM Mono',monospace;font-size:11px;color:var(--red);">
+      ${ctx.playerRoster.injured.map(p => p.name + ' — ' + p.status + (p.injuryNote ? ': ' + p.injuryNote.substring(0,80) : '')).join('<br>')}
+    </div>` : '';
+
+  const last5Table = hasStats && stats.last5Games?.length ? `
+    <div class="section-divider">Last 5 Games — Source: BallDontLie ✓</div>
+    <table class="mini-table">
+      <thead><tr><th>DATE</th><th>OPP</th><th>PTS</th><th>REB</th><th>AST</th><th>MIN</th><th>FG%</th></tr></thead>
+      <tbody>${stats.last5Games.map(g => `<tr><td>${g.date}</td><td>${(g.opponent||'N/A').split(' ').pop()}</td><td>${g.pts}</td><td>${g.reb}</td><td>${g.ast}</td><td>${g.min}</td><td>${g.fg_pct}</td></tr>`).join('')}</tbody>
+    </table>` : '';
+
+  const factorHTML = factors.map(f => `<div class="factor-pill"><div class="fi ${f.type}">${f.type==='pos'?'▲':'▼'}</div><div class="factor-txt">${f.text}</div></div>`).join('');
+
+  return `
+    ${sourceBanner}
+    ${disclaimer}
+    <div style="margin-bottom:6px;">
+      <div style="font-family:'Bebas Neue',cursive;font-size:26px;letter-spacing:2px;">${player}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px;">${propType.toUpperCase()} · LINE ${line} · PROJECTION ${projection}</div>
+    </div>
+    ${chips}
+    ${ctx?.mathProjection ? `
+    <div style="background:rgba(74,158,255,0.06);border:1px solid rgba(74,158,255,0.2);border-radius:8px;padding:10px 14px;margin:8px 0;font-family:'DM Mono',monospace;font-size:10px;">
+      <div style="color:var(--blue);letter-spacing:1px;margin-bottom:6px;">MATH PROJECTION BREAKDOWN — SERVER CALCULATED</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;color:var(--muted);">
+        <span>L5: <span style="color:var(--text)">${ctx.mathProjection.l5Avg}</span></span>
+        <span>L10: <span style="color:var(--text)">${ctx.mathProjection.l10Avg}</span></span>
+        <span>Pace adj: <span style="color:var(--text)">${ctx.mathProjection.oppPace || 'N/A'}</span></span>
+        <span>DvP coeff: <span style="color:var(--text)">${ctx.mathProjection.dvpCoeff}x</span></span>
+        <span>Usage mult: <span style="color:var(--text)">${ctx.mathProjection.usageMult}x</span></span>
+        <span>Form: <span style="color:${ctx.mathProjection.form==='HOT'?'var(--green)':ctx.mathProjection.form==='COLD'?'var(--red)':'var(--muted)'}">${ctx.mathProjection.form}</span></span>
+        <span>Math conf: <span style="color:var(--blue)">${ctx.mathProjection.confidence}%</span></span>
+      </div>
+    </div>` : ''}
+    <div style="margin:14px 0 8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div class="verdict-badge ${vc}">${vc==='over'?'▲':vc==='under'?'▼':'◈'} ${verdict}</div>
+      ${vc==='pass' && precomputedVerdict?.direction !== 'NEUTRAL' ? `<div style="font-family:'DM Mono',monospace;font-size:10px;padding:4px 10px;border-radius:5px;background:${precomputedVerdict.direction==='OVER_LEAN'?'rgba(46,204,113,0.08)':'rgba(231,76,60,0.08)'};color:${precomputedVerdict.direction==='OVER_LEAN'?'var(--green)':'var(--red)'};border:1px solid ${precomputedVerdict.direction==='OVER_LEAN'?'rgba(46,204,113,0.2)':'rgba(231,76,60,0.2)'}">${precomputedVerdict.direction==='OVER_LEAN'?'slight over lean':'slight under lean'}</div>` : ''}
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);">EDGE: <span style="color:${edge>0?'var(--green)':edge<0?'var(--red)':'var(--muted)'};">${edge>0?'+':''}${edge}</span></div>
+    </div>
+    <div class="conf-wrap">
+      <div class="conf-labels"><span>CONFIDENCE</span><span>${confidence}%</span></div>
+      <div class="conf-bar"><div class="conf-fill ${vc}" style="width:${confidence}%"></div></div>
+    </div>
+    ${isElite?`<div class="outlier-strip"><div style="font-size:20px;">★</div><p><strong>OUTLIER ALERT</strong> — ${player} is flagged as elite/matchup-resistant.</p></div>`:''}
+    ${oppRosterDisplay}
+    ${playerTeamInjuries}
+    ${defStats}
+    ${last5Table}
+    <div class="section-divider">Key Factors</div>
+    <div class="factor-grid">${factorHTML}</div>
+    ${blowout?`<div class="section-divider">Blowout Scenario</div><div class="analysis-box">${blowout}</div>`:''}
+    ${shotChart?`<div class="section-divider">Shot Chart vs Defense</div><div class="analysis-box">${shotChart}</div>`:''}
+    ${h2h?`<div class="section-divider">Head-to-Head</div><div class="analysis-box">${h2h}</div>`:''}
+    ${fullAnalysis?`<div class="analysis-text">${fullAnalysis}</div>`:''}
+    ${bottomLine?`<div class="bottom-line">${bottomLine}</div>`:''}
+  `;
+}
+
+// ── MATCHUP SCANNER ───────────────────────────────────
+function prefillMatchup(t1, t2) {
+  switchTab('matchups', document.querySelectorAll('.tab')[1]);
+  document.getElementById('matchup-team1').value = t1;
+  document.getElementById('matchup-team2').value = t2;
+  analyzeMatchup();
+}
+
+async function analyzeMatchup() {
+  const t1 = document.getElementById('matchup-team1').value.trim();
+  const t2 = document.getElementById('matchup-team2').value.trim();
+  if (!t1 || !t2) { alert('Enter both teams.'); return; }
+
+  // Pull live data for both teams — stats + ESPN rosters in parallel
+  let liveData = '';
+  let rosterData = '';
+  try {
+    const [d1, d2, r1, r2] = await Promise.all([
+      apiGet(`/api/nba-stats?team=${encodeURIComponent(t1)}`),
+      apiGet(`/api/nba-stats?team=${encodeURIComponent(t2)}`),
+      apiGet(`/api/roster?team=${encodeURIComponent(t1)}`),
+      apiGet(`/api/roster?team=${encodeURIComponent(t2)}`)
+    ]);
+    if (d1.advanced) liveData += `\n${t1} LIVE STATS (nba.com): Pace=${d1.advanced.PACE}, OffRtg=${d1.advanced.OFF_RATING}, DefRtg=${d1.advanced.DEF_RATING}`;
+    if (d2.advanced) liveData += `\n${t2} LIVE STATS (nba.com): Pace=${d2.advanced.PACE}, OffRtg=${d2.advanced.OFF_RATING}, DefRtg=${d2.advanced.DEF_RATING}`;
+    if (d1.oppShooting) liveData += `\n${t1} Opp FG% allowed: ${d1.oppShooting.OPP_FG_PCT}, Opp 3P%: ${d1.oppShooting.OPP_FG3_PCT}`;
+    if (d2.oppShooting) liveData += `\n${t2} Opp FG% allowed: ${d2.oppShooting.OPP_FG_PCT}, Opp 3P%: ${d2.oppShooting.OPP_FG3_PCT}`;
+    // ESPN rosters
+    if (r1?.players?.length) {
+      const inj1 = (r1.injured||[]).map(p => p.name + ' (' + p.status + ')').join(', ');
+      rosterData += `\n${t1} ROSTER (ESPN, post-trade): ${r1.players.map(p=>p.name).slice(0,10).join(', ')}`;
+      if (inj1) rosterData += ` | INJURED: ${inj1}`;
+    }
+    if (r2?.players?.length) {
+      const inj2 = (r2.injured||[]).map(p => p.name + ' (' + p.status + ')').join(', ');
+      rosterData += `\n${t2} ROSTER (ESPN, post-trade): ${r2.players.map(p=>p.name).slice(0,10).join(', ')}`;
+      if (inj2) rosterData += ` | INJURED: ${inj2}`;
+    }
+  } catch (_) {}
+
+  const div = document.getElementById('matchup-result');
+  div.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:200px;gap:14px;"><div class="spinner"></div><div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);">SCANNING...</div></div>`;
+
+  try {
+    const prompt = `You are WIN AI. Analyze ${t1} vs ${t2} for player prop betting.
+${liveData ? `\nVERIFIED LIVE DATA (nba.com):\n${liveData}` : ''}
+${rosterData ? `\nESPN ROSTERS (post-trade deadline, live):\n${rosterData}` : ''}
+${(liveData || rosterData) ? `\nUse verified data above and tag all stats as [LIVE] or [AI].` : ''}
+
+Provide:
+1. PACE RATING — use live pace data above if available, tag source
+2. TOP PROP TARGETS — 4-5 players with strong value, cite specific stats with [LIVE] or [AI] tags
+3. AVOID LIST — 2-3 players to fade with reasons
+4. DEFENSIVE SCHEME BREAKDOWN — tag any specific numbers as [LIVE] or [AI]
+5. BLOWOUT RISK
+6. OUTLIER ALERT
+
+Flag any [AI] stats that should be verified on nba.com before betting.`;
+
+    const res = await apiPost('/api/analyze', { prompt });
+    div.innerHTML = `
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--gold);margin-bottom:14px;">${t1.toUpperCase()} VS ${t2.toUpperCase()}</div>
+      ${liveData ? `<div class="ai-disclaimer" style="margin-bottom:14px;">✓ Live nba.com pace and defensive data injected into this analysis.</div>` : '<div class="ai-disclaimer" style="margin-bottom:14px;">⚠ No live data — run fetch_stats.py for verified numbers.</div>'}
+      <div style="font-size:13px;line-height:1.85;color:var(--text);white-space:pre-wrap;">${res.response}</div>`;
+  } catch (err) {
+    div.innerHTML = `<div style="color:var(--red);font-family:'DM Mono',monospace;font-size:12px;padding:20px;">ERROR: ${err.message}</div>`;
+  }
+}
+
+// ── HISTORY ───────────────────────────────────────────
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (!analysisHistory.length) { el.innerHTML = '<div style="color:var(--muted);font-family:\'DM Mono\',monospace;font-size:11px;padding:16px 0;">NO ANALYSES YET</div>'; return; }
+  el.innerHTML = analysisHistory.map((h, i) => `
+    <div class="history-item" onclick="loadHistory(${i})">
+      <div><div class="h-player">${h.player}</div><div class="h-meta">${h.propType?.toUpperCase()} ${h.line} · vs ${h.opp} · ${h.confidence}% · ${h.time?.toLocaleTimeString()}</div></div>
+      <div class="h-verdict ${h.verdict?.toLowerCase()}">${h.verdict}</div>
+    </div>`).join('');
+}
+
+function loadHistory(i) {
+  const h = analysisHistory[i];
+  switchTab('analyzer', document.querySelectorAll('.tab')[0]);
+  document.getElementById('player-name').value = h.player;
+  document.getElementById('opp-team').value = h.opp;
+  document.getElementById('prop-line').value = h.line;
+  const hv = parseVerdict(h.raw, { ...(h.ctx||{}), _postedLine: h.line, mathProjection: h.ctx?.mathProjection });
+  document.getElementById('result-area').innerHTML = renderResult(h.raw, h.player, h.opp || '', h.propType, h.line, h.ctx || {}, hv);
+}
+
+// ── HELPERS ───────────────────────────────────────────
+async function apiGet(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Server error ${res.status}`);
+  return res.json();
+}
+async function apiPost(url, body) {
+  const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (!res.ok) { const e = await res.json().catch(()=>({error:'Unknown'})); throw new Error(e.error || `Error ${res.status}`); }
+  return res.json();
+}
+function parseVerdict(text, ctx) {
+  const rawVerdict = (text.match(/VERDICT:\s*(OVER|UNDER|PASS)/i)||[])[1]?.toUpperCase()||'PASS';
+  const rawConf    = parseInt((text.match(/CONFIDENCE:\s*(\d+)/i)||[])[1]||'50');
+  const mp = ctx?.mathProjection;
+  const postedLine = ctx?._postedLine ? parseFloat(ctx._postedLine) : null;
+  let projection, edge, confidence;
+  if (mp?.projection) {
+    // Math-grounded — prevents anchoring to posted line
+    projection = mp.projection.toString();
+    confidence = Math.max(30, Math.min(88, mp.confidence));
+    if (postedLine && postedLine > 0) {
+      const rawEdgePct = ((mp.projection - postedLine) / postedLine) * 100;
+      edge = Math.max(-10, Math.min(10, parseFloat(rawEdgePct.toFixed(1))));
+    } else {
+      const rawEdge = parseFloat((text.match(/EDGE SCORE:\s*([+-]?\d+(?:\.\d+)?)/i)||[])[1]||'0');
+      edge = Math.max(-10, Math.min(10, rawEdge));
+    }
+  } else {
+    // Fallback to Claude's values
+    const rawEdge = parseFloat((text.match(/EDGE SCORE:\s*([+-]?\d+(?:\.\d+)?)/i)||[])[1]||'0');
+    edge = Math.max(-10, Math.min(10, rawEdge));
+    confidence = Math.max(0, Math.min(100, rawConf));
+    projection = (text.match(/PROJECTION:\s*([0-9.]+)/i)||[])[1]||'—';
+  }
+  // Verdict is 100% math-driven — Claude's rawVerdict is ignored
+  // edge > 0 = projection above line = OVER
+  // edge < 0 = projection below line = UNDER
+  // |edge| <= 1.5 = too close to call = PASS
+  let verdict;
+  if (Math.abs(edge) <= 1.5) {
+    verdict = 'PASS';
+  } else if (edge > 0) {
+    verdict = 'OVER';
+  } else {
+    verdict = 'UNDER';
+  }
+  const direction = edge > 1.5 ? 'OVER_LEAN' : edge < -1.5 ? 'UNDER_LEAN' : 'NEUTRAL';
+  return { verdict, confidence, edge, projection, direction };
+}
+function extractFactors(text) {
+  const f = [];
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    if (t.startsWith('+ ')) f.push({ type:'pos', text:t.slice(2) });
+    else if (t.startsWith('- ')) f.push({ type:'neg', text:t.slice(2) });
+    if (f.length >= 6) break;
+  }
+  return f;
+}
+function extractSection(text, header) {
+  const re = new RegExp(header.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+':?\\s*(.+?)(?=\\n[A-Z][A-Z ]+:|$)','is');
+  return (text.match(re)||[])[1]?.trim()||'';
+}
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names=['analyzer','matchups','history'];
+    t.classList.toggle('active', names[i]===name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+name)?.classList.add('active');
+}
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && document.getElementById('panel-analyzer').classList.contains('active') && !document.getElementById('analyze-btn').disabled) analyzeProp();
+});
+</script>
+</body>
+</html>
